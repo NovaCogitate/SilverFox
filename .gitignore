@@ -163,6 +163,7 @@ cython_debug/
 # not following the apex thing
 apex 
 results
+results_3D
 
 # not tracking the lock file. 
 .venv 

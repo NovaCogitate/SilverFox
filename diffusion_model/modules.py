@@ -1,4 +1,4 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 #
 # Original code is here: https://github.com/openai/guided-diffusion
 #
@@ -11,6 +11,20 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+def avg_pool_nd(dims, *args, **kwargs):
+    """
+    Create a 1D, 2D, or 3D average pooling module.
+    """
+    if dims == 1:
+        return nn.AvgPool1d(*args, **kwargs)
+    elif dims == 2:
+        return nn.AvgPool2d(*args, **kwargs)
+    elif dims == 3:
+        return nn.AvgPool3d(*args, **kwargs)
+    raise ValueError(f"unsupported dimensions: {dims}")
+
 
 def checkpoint(func, inputs, params, flag):
     """
@@ -27,6 +41,7 @@ def checkpoint(func, inputs, params, flag):
         return CheckpointFunction.apply(func, len(inputs), *args)
     else:
         return func(*inputs)
+
 
 class CheckpointFunction(th.autograd.Function):
     @staticmethod
@@ -58,6 +73,7 @@ class CheckpointFunction(th.autograd.Function):
         del output_tensors
         return (None, None) + input_grads
 
+
 def conv_nd(dims, *args, **kwargs):
     """
     Create a 1D, 2D, or 3D convolution module.
@@ -76,6 +92,7 @@ def linear(*args, **kwargs):
     Create a linear module.
     """
     return nn.Linear(*args, **kwargs)
+
 
 def zero_module(module):
     """
@@ -100,6 +117,7 @@ def mean_flat(tensor):
     Take the mean over all non-batch dimensions.
     """
     return tensor.mean(dim=list(range(1, len(tensor.shape))))
+
 
 def normalization(channels):
     """
@@ -129,6 +147,7 @@ def timestep_embedding(timesteps, dim, max_period=1000):
         embedding = th.cat([embedding, th.zeros_like(embedding[:, :1])], dim=-1)
     return embedding
 
+
 class SiLU(nn.Module):
     def forward(self, x):
         return x * th.sigmoid(x)
@@ -137,6 +156,7 @@ class SiLU(nn.Module):
 class GroupNorm32(nn.GroupNorm):
     def forward(self, x):
         return super().forward(x.float()).type(x.dtype)
+
 
 class AttentionPool2d(nn.Module):
     """
@@ -152,7 +172,7 @@ class AttentionPool2d(nn.Module):
     ):
         super().__init__()
         self.positional_embedding = nn.Parameter(
-            th.randn(embed_dim, spacial_dim ** 2 + 1) / embed_dim ** 0.5
+            th.randn(embed_dim, spacial_dim**2 + 1) / embed_dim**0.5
         )
         self.qkv_proj = conv_nd(1, embed_dim, 3 * embed_dim, 1)
         self.c_proj = conv_nd(1, embed_dim, output_dim or embed_dim, 1)
@@ -196,6 +216,7 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
                 x = layer(x)
         return x
 
+
 class Upsample(nn.Module):
     """
     An upsampling layer with an optional convolution.
@@ -225,6 +246,7 @@ class Upsample(nn.Module):
         if self.use_conv:
             x = self.conv(x)
         return x
+
 
 class Downsample(nn.Module):
     """
@@ -433,7 +455,7 @@ def count_flops_attn(model, _x, y):
     # We perform two matmuls with the same number of ops.
     # The first computes the weight matrix, the second computes
     # the combination of the value vectors.
-    matmul_ops = 2 * b * (num_spatial ** 2) * c
+    matmul_ops = 2 * b * (num_spatial**2) * c
     model.total_ops += th.DoubleTensor([matmul_ops])
 
 

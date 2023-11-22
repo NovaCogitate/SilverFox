@@ -19,6 +19,8 @@ from PIL import Image
 import nibabel as nib
 import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+
 
 # from torch.utils.tensorboard import SummaryWriter
 import datetime
@@ -359,6 +361,15 @@ class GaussianDiffusion(nn.Module):
         return loss
 
     def forward(self, x, condition_tensors=None, *args, **kwargs):
+        """This is a forwards step of the diffusion model.
+
+        Args:
+            x (_type_): _description_
+            condition_tensors (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         (
             b,
             c,
@@ -388,7 +399,6 @@ class Trainer(object):
         diffusion_model,
         dataset,
         ema_decay=0.995,
-        image_size=128,
         depth_size=128,
         train_batch_size=1,
         train_lr=2e-6,
@@ -400,7 +410,6 @@ class Trainer(object):
         save_and_sample_every=1000,
         results_folder="./results",
         with_condition=False,
-        with_pairwised=False,
     ):
         super().__init__()
         self.model = diffusion_model
@@ -476,7 +485,6 @@ class Trainer(object):
 
     def load(self, milestone):
         data = torch.load(str(self.results_folder / f"model/model-{milestone}.pt"))
-
         self.step = data["step"]
         self.model.load_state_dict(data["model"])
         self.ema_model.load_state_dict(data["ema"])
@@ -491,7 +499,7 @@ class Trainer(object):
                 if self.with_condition:
                     data = next(self.dl)
                     input_tensors = data["input"].cuda()
-                    target_tensors = data["target"].cuda()
+                    target_tensors = data["segmentation"].cuda()
                     loss = self.model(target_tensors, condition_tensors=input_tensors)
                 else:
                     data = next(self.dl).cuda()
@@ -545,20 +553,103 @@ class Trainer(object):
                 )
                 self.save(milestone)
 
+                if len(output.shape) == 4:
+                    b, c, h, w = output.shape
+                    for batch in range(b):
+                        fig, axis = plt.subplots(1, 7, figsize=(25, 5))
+                        half_point_z = int(w / 2)
+                        half_point_x = int(h / 2)
+
+                        axis[0].imshow(
+                            output[batch][half_point_x, :, :],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+                        axis[1].imshow(
+                            output[batch][:, half_point_x, :],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+
+                        axis[2].imshow(
+                            output[batch][:, :, 0],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+
+                        axis[3].imshow(
+                            output[batch][:, :, half_point_z // 2],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+                        axis[4].imshow(
+                            output[batch][:, :, half_point_z],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+                        axis[5].imshow(
+                            output[batch][:, :, half_point_z + half_point_z // 2],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+
+                        axis[6].imshow(
+                            output[batch][:, :, -1],
+                            vmin=-1,
+                            vmax=1,
+                            cmap="gray",
+                        )
+
+                        axis[0].set_title("X projection on the X axis (yz plane)")
+                        axis[1].set_title("X projection on the Y axis (xz plane)")
+                        axis[2].set_title(
+                            "X projection on the Y axis (xy plane) - base"
+                        )
+                        axis[3].set_title(
+                            "X projection on the Z axis (xy plane) - 1/4 way through"
+                        )
+                        axis[4].set_title(
+                            "X projection on the Z axis (xy plane) - 2/4 way through"
+                        )
+                        axis[5].set_title(
+                            "X projection on the Z axis (xy plane) - 3/4 way through"
+                        )
+                        axis[6].set_title(
+                            "X projection on the Z axis (xy plane) - 4/4 way through"
+                        )
+
+                        for ax in axis.flatten():
+                            ax.axis("off")
+
+                        plt.savefig(
+                            f"{self.results_folder}/model/output-{milestone}-{batch}.png"
+                        )
+                        plt.close()
+
+                elif len(output.shape == 3):
+                    b, h, w = output.shape
+                    fig, axis = plt.subplots(1, b, figsize=(15, 5))
+
+                    for ax in axis.flatten():
+                        ax.axis("off")
+                        axis[batch].imshow(
+                            output[batch, :, :], vmin=-1, vmax=1, cmap="gray"
+                        )
+
+                    plt.savefig(
+                        f"{self.results_folder}/model/output-{milestone}-{batch}.png"
+                    )
+                    plt.close()
+
             self.step += 1
 
         print("training completed")
         end_time = time.time()
         execution_time = (end_time - start_time) / 3600
         print(f"Execution time (hour): {execution_time}")
-        # self.writer.add_hparams(
-        #     {
-        #         "lr": self.train_lr,
-        #         "batchsize": self.train_batch_size,
-        #         "image_size": self.image_size,
-        #         "depth_size": self.depth_size,
-        #         "execution_time (hour)": execution_time,
-        #     },
-        #     {"last_loss": average_loss},
-        # )
-        # self.writer.close()

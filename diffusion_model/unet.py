@@ -1,4 +1,4 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 # *Main part of the code is adopted from the following repository: https://github.com/openai/guided-diffusion
 
 import numpy as np
@@ -10,6 +10,7 @@ from .fp16_util import convert_module_to_f16, convert_module_to_f32
 from .modules import *
 
 NUM_CLASSES = 1
+
 
 class UNetModel(nn.Module):
     """
@@ -321,7 +322,7 @@ def create_model(
         image_size=image_size,
         in_channels=in_channels,
         model_channels=num_channels,
-        out_channels=(1*out_channels if not learn_sigma else 2*out_channels),
+        out_channels=(1 * out_channels if not learn_sigma else 2 * out_channels),
         num_res_blocks=num_res_blocks,
         attention_resolutions=tuple(attention_ds),
         dropout=dropout,

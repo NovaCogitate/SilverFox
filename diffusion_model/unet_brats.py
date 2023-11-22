@@ -11,8 +11,6 @@ import torch.nn.functional as F
 from .fp16_util import convert_module_to_f16, convert_module_to_f32
 from .modules import *
 
-NUM_CLASSES = 1
-
 
 class UNetModel(nn.Module):
     """
@@ -292,6 +290,9 @@ def create_model(
     use_checkpoint=False,
     attention_resolutions="16",
     num_heads=1,
+    conv_resample=True,
+    dims=3,
+    num_classes=None,
     num_head_channels=-1,
     num_heads_upsample=-1,
     use_scale_shift_norm=False,
@@ -314,6 +315,8 @@ def create_model(
         elif image_size == 32:
             channel_mult = (1, 2, 3)
         elif image_size == 16:
+            channel_mult = (1, 2, 2)
+        elif image_size == 8:
             channel_mult = (1, 2)
         else:
             raise ValueError(f"unsupported image size: {image_size}")
@@ -331,9 +334,11 @@ def create_model(
         out_channels=(1 * out_channels if not learn_sigma else 2 * out_channels),
         num_res_blocks=num_res_blocks,
         attention_resolutions=tuple(attention_ds),
+        conv_resample=conv_resample,
+        dims=dims,
         dropout=dropout,
         channel_mult=channel_mult,
-        num_classes=(NUM_CLASSES if class_cond else None),
+        num_classes=(num_classes if class_cond else None),
         use_checkpoint=use_checkpoint,
         use_fp16=use_fp16,
         num_heads=num_heads,

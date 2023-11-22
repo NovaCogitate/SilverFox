@@ -91,7 +91,7 @@ class RandomCrossDataset(Dataset):
         cube_projection = [torch.from_numpy(cube_base) for _ in range(z)]
         cube = torch.stack(cube_projection, dim=2).unsqueeze(0)
 
-        return cube
+        return cube.half()
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import nibabel as nib
 from torchvision.transforms import Compose, Lambda
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
 from diffusion_model.unet_brats import create_model
-from dataset_cubes import RandomCubeDataset
+from datasets.dataset_crosses import RandomCrossDataset
 import torch
 import os
 
@@ -11,31 +11,42 @@ import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-input_size = 16
-depth_size = 16
-num_channels = 64
-num_res_blocks = 2
+# configuration of data
+input_size = 16  # the size of image
+depth_size = 16  # the size of classes
+
+
+# configuration of training
 batchsize = 1
 epochs = 10000
-timesteps = 50
 save_and_sample_every = 1000
-with_condition = False  # Change to False if not needed
 resume_weight = ""
+traning_lr = 1e-4
+
+# configuration of network
+num_channels = 64
+num_res_blocks = 2
+num_heads = 1
+num_head_channels = -1
+num_heads_upsample = -1
+dropout = 0.1
+
 in_channels = 1
 out_channels = 1
+
 channel_mult = ""
 learn_sigma = False
 class_cond = False
 use_checkpoint = False
-attention_resolutions = "16"
-num_heads = 1
-num_head_channels = -1
-num_heads_upsample = -1
+attention_resolutions = "32,16,8"
 use_scale_shift_norm = False
-dropout = 0
-resblock_updown = False
+resblock_updown = True
 use_fp16 = True
-use_new_attention_order = False
+use_new_attention_order = True
+
+# configuration of diffusion process
+timesteps = 50
+
 
 model = create_model(
     image_size=input_size,
@@ -72,16 +83,16 @@ diffusion = GaussianDiffusion(
     lambda_bce=0.0,
 ).cuda()
 
-dataset = RandomCubeDataset(size=(input_size, input_size, depth_size))
+dataset = RandomCrossDataset(size=input_size, depth=depth_size, length=100)
 
 trainer = Trainer(
     diffusion_model=diffusion,
     dataset=dataset,
-    ema_decay=0.999,
+    ema_decay=0.995,
     image_size=input_size,
     depth_size=depth_size,
     train_batch_size=batchsize,
-    train_lr=2e-6,
+    train_lr=traning_lr,
     train_num_steps=epochs,
     gradient_accumulate_every=2,
     fp16=use_fp16,
