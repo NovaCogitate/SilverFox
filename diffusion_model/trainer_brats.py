@@ -561,11 +561,11 @@ class Trainer(object):
                 self.save(milestone)
 
                 if len(output.shape) == 4:
-                    b, c, h, w = output.shape
+                    b, h, w, z = output.shape
                     for batch in range(b):
                         fig, axis = plt.subplots(1, 7, figsize=(25, 5))
                         half_point_z = int(w / 2)
-                        half_point_x = int(h / 2)
+                        half_point_x = int(z / 2)
 
                         axis[0].imshow(
                             output[batch][half_point_x, :, :],
@@ -666,3 +666,134 @@ class Trainer(object):
         end_time = time.time()
         execution_time = (end_time - start_time) / 3600
         print(f"Execution time (hour): {execution_time}")
+
+    def generate_samples(
+        self, no_of_samples, batch_size, conditioning_samples=None, milestone=0
+    ):
+        # number of batches need to be calculated
+        batches = num_to_groups(no_of_samples, batch_size)
+
+        if self.with_condition:
+            current_iter = batch_fraction * batch_size
+            previous_iter = (batch_fraction - 1) * batch_size
+            conditioning_samples_per_batch = conditioning_samples[
+                previous_iter:current_iter
+            ]
+
+            all_images_list = list(
+                map(
+                    lambda batch: self.ema_model.sample(
+                        batch_size=batch,
+                        condition_tensors=conditioning_samples_per_batch,
+                    ),
+                    batches,
+                )
+            )
+            all_images = torch.cat(all_images_list, dim=0)
+        else:
+            all_images_list = list(
+                map(lambda n: self.ema_model.sample(batch_size=n), batches)
+            )
+            all_images = torch.cat(all_images_list, dim=0)
+
+        plot_folder = os.path.join(self.results_folder, f"plots_{milestone}")
+        os.makedirs(plot_folder, exist_ok=True)
+
+        if len(all_images.shape) == 5:
+            all_images = all_images.detach().cpu().numpy()
+            b, c, h, w, z = all_images.shape
+            for channel in range(c):
+                for batch in range(b):
+                    fig, axis = plt.subplots(1, 7, figsize=(25, 5))
+                    half_point_z = int(w / 2)
+                    half_point_x = int(z / 2)
+
+                    axis[0].imshow(
+                        all_images[batch][channel][half_point_x, :, :],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+                    axis[1].imshow(
+                        all_images[batch][channel][:, half_point_x, :],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+
+                    axis[2].imshow(
+                        all_images[batch][channel][:, :, 0],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+
+                    axis[3].imshow(
+                        all_images[batch][channel][:, :, half_point_z // 2],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+                    axis[4].imshow(
+                        all_images[batch][channel][:, :, half_point_z],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+                    axis[5].imshow(
+                        all_images[batch][channel][
+                            :, :, half_point_z + half_point_z // 2
+                        ],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+
+                    axis[6].imshow(
+                        all_images[batch][channel][:, :, -1],
+                        vmin=-1,
+                        vmax=1,
+                        cmap="gray",
+                    )
+
+                    axis[0].set_title("X projection on the X axis (yz plane)")
+                    axis[1].set_title("X projection on the Y axis (xz plane)")
+                    axis[2].set_title("X projection on the Y axis (xy plane) - base")
+                    axis[3].set_title(
+                        "X projection on the Z axis (xy plane) - 1/4 way through"
+                    )
+                    axis[4].set_title(
+                        "X projection on the Z axis (xy plane) - 2/4 way through"
+                    )
+                    axis[5].set_title(
+                        "X projection on the Z axis (xy plane) - 3/4 way through"
+                    )
+                    axis[6].set_title(
+                        "X projection on the Z axis (xy plane) - 4/4 way through"
+                    )
+
+                    for ax in axis.flatten():
+                        ax.axis("off")
+
+                    plt.savefig(os.path.join(plot_folder, f"{batch}.png"))
+                    np.save(
+                        os.path.join(plot_folder, f"{batch}.npy"), all_images[batch]
+                    )
+                    plt.close()
+
+        elif len(all_images.shape) == 4:
+            # save all the images in a new folder
+            for i in range(all_images.shape[0]):
+                image = all_images[i, 0, ...]
+                image = image.cpu().numpy()
+                plt.imshow(image, cmap="gray")
+                plt.axis("off")
+                plt.savefig(os.path.join(plot_folder, f"sample_{i}.png"))
+                plt.close()
+                np.save(os.path.join(plot_folder, f"sample_{i}.npy"), image)
+
+                # save the numpy as well
+                np.save(os.path.join(plot_folder, f"sample_{i}.npy"), image)
+
+        else:
+            raise NotImplementedError()

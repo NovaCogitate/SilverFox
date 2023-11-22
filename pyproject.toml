@@ -13,6 +13,9 @@ torchvision = {version = "^0.16.1+cu121", source = "pytorch"}
 torchaudio = {version = "^2.1.1+cu121", source = "pytorch"}
 torch = {version = "^2.1.1+cu121", source = "pytorch"}
 sympy = "^1.12"
+tqdm = "^4.66.1"
+apex = "^0.9.10.dev0"
+packaging = "^23.2"
 
 
 [tool.poetry.group.dev.dependencies]
