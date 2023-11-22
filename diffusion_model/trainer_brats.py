@@ -538,6 +538,7 @@ class Trainer(object):
 
                 output = all_images[:, 0, ...]
                 output = output.cpu().numpy()
+                print(output)
                 np.save(
                     f"{self.results_folder}/model/output-{milestone}.npy",
                     output,

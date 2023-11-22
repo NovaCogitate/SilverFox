@@ -160,7 +160,10 @@ cython_debug/
 #.idea/
 
 
-
-
+# not following the apex thing
 apex 
 results
+
+# not tracking the lock file. 
+.venv 
+poetry.lock

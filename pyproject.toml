@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "silverfox"
+version = "0.1.0"
+description = "This is an implementation of a half precision capable diffusion model capable of learning 3D voxel structures"
+authors = ["Pedro Rodrigues <shawnpedrodr@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26.2"
+nibabel = "^5.1.0"
+torch = "^2.1.1+cu121"
+torchvision = {version = "^0.16.1+cu121", source = "pytorch"}
+torchaudio = {version = "^2.1.1+cu121", source = "pytorch"}
+sympy = "^1.12"
+
+
+[tool.poetry.group.dev.dependencies]
+matplotlib = "^3.8.2"
+jupyter = "^1.0.0"
+
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
