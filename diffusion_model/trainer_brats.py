@@ -302,10 +302,18 @@ class GaussianDiffusion(nn.Module):
         depth_size = self.depth_size
         channels = self.channels
 
-        return self.p_sample_loop(
-            (batch_size, channels, depth_size, image_size, image_size),
-            condition_tensors=condition_tensors,
-        )
+        if depth_size == 0:
+            return self.p_sample_loop(
+                (batch_size, channels, image_size, image_size),
+                condition_tensors=condition_tensors,
+            )
+        elif depth_size > 0:
+            return self.p_sample_loop(
+                (batch_size, channels, depth_size, image_size, image_size),
+                condition_tensors=condition_tensors,
+            )
+        else:
+            raise NotImplementedError()
 
     @torch.no_grad()
     def interpolate(self, x1, x2, t=None, lam=0.5):
@@ -336,7 +344,7 @@ class GaussianDiffusion(nn.Module):
         )
 
     def p_losses(self, x_start, t, condition_tensors=None, noise=None):
-        b, c, h, w, d = x_start.shape
+        # b, c, h, w, d = x_start.shape
         noise = default(noise, lambda: torch.randn_like(x_start))
 
         if self.with_condition:
@@ -370,16 +378,15 @@ class GaussianDiffusion(nn.Module):
         Returns:
             _type_: _description_
         """
+        if len(x.shape) == 5:
+            b, c, d, h, w = x.shape
+        else:
+            b, c, h, w = x.shape
+
         (
-            b,
-            c,
-            d,
-            h,
-            w,
             device,
             img_size,
         ) = (
-            *x.shape,
             x.device,
             self.image_size,
         )
@@ -546,7 +553,7 @@ class Trainer(object):
 
                 output = all_images[:, 0, ...]
                 output = output.cpu().numpy()
-                print(output)
+
                 np.save(
                     f"{self.results_folder}/model/output-{milestone}.npy",
                     output,
@@ -632,18 +639,24 @@ class Trainer(object):
                         )
                         plt.close()
 
-                elif len(output.shape == 3):
+                elif len(output.shape) == 3:
                     b, h, w = output.shape
-                    fig, axis = plt.subplots(1, b, figsize=(15, 5))
+                    if b > 1:
+                        fig, axis = plt.subplots(1, b, figsize=(15, 5))
 
-                    for ax in axis.flatten():
-                        ax.axis("off")
-                        axis[batch].imshow(
-                            output[batch, :, :], vmin=-1, vmax=1, cmap="gray"
-                        )
+                        for batch, ax in enumerate(axis.flatten()):
+                            ax.axis("off")
+                            ax[batch].imshow(
+                                output[batch, :, :], vmin=-1, vmax=1, cmap="gray"
+                            )
+                    else:
+                        fig, axis = plt.subplots(1, 1, figsize=(15, 5))
+                        axis.axis("off")
+                        axis.imshow(output[0, :, :], vmin=-1, vmax=1, cmap="gray")
+                        axis.set_title("x-y plane")
 
                     plt.savefig(
-                        f"{self.results_folder}/model/output-{milestone}-{batch}.png"
+                        f"{self.results_folder}/model/output-{milestone}-{b}.png"
                     )
                     plt.close()
 

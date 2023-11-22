@@ -59,15 +59,15 @@ class RandomXDataset(Dataset):
         """
         x, y = self.size if isinstance(self.size, tuple) else (self.size, self.size)
         square_base = draw_x(size=x, angle=random.uniform(0, np.pi))
-        square = torch.from_numpy(square_base).unsqueeze(0).unsqueeze(0)
-        return square
+        square = torch.from_numpy(square_base).unsqueeze(0)
+        return square.half()
 
 
 class RandomCrossDataset(Dataset):
-    def __init__(self, size=16, depth=16, length=100):
+    def __init__(self, size=16, depth=16, length=100, half=True):
         self.size = size  # x,y dimensions of the cube
         self.depth = depth  # z dimensions of the cube
-
+        self.half = half
         self.length = length  # size of the dataset
 
     def __len__(self):
@@ -91,7 +91,7 @@ class RandomCrossDataset(Dataset):
         cube_projection = [torch.from_numpy(cube_base) for _ in range(z)]
         cube = torch.stack(cube_projection, dim=2).unsqueeze(0)
 
-        return cube.half()
+        return cube.half() if self.half else cube
 
 
 if __name__ == "__main__":

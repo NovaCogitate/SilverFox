@@ -9,7 +9,7 @@ sys.path.append("/home/pedro/Desktop/Repos/SilverFox/")
 
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
 from diffusion_model.unet_brats import create_model
-from datasets.dataset_crosses import RandomCrossDataset
+from datasets.dataset_crosses import RandomXDataset
 import torch
 import os
 
@@ -18,13 +18,13 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # configuration of data
-input_size = 8  # the size of image
-depth_size = 8  # the size of classes
+input_size = 16  # the size of image
+depth_size = 0  # the size of classes
 
 
 # configuration of training
 batchsize = 64
-epochs = 20000
+epochs = 4000
 save_and_sample_every = 100
 resume_weight = ""
 train_lr = 5e-3
@@ -41,7 +41,7 @@ num_head_channels = -1
 num_heads_upsample = -1
 dropout = 0.05
 conv_resample = True
-dims = 3
+dims = 2
 num_classes = None
 
 in_channels = 1
@@ -61,7 +61,7 @@ use_new_attention_order = True
 timesteps = 250
 
 data_folder = ""
-results_folder = "./results_3D"
+results_folder = "./results_2D"
 
 # the configs above
 config = {
@@ -115,6 +115,8 @@ model = create_model(
     in_channels=in_channels,
     out_channels=out_channels,
     class_cond=class_cond,
+    conv_resample=conv_resample,
+    dims=dims,
     use_checkpoint=use_checkpoint,
     attention_resolutions=attention_resolutions,
     num_heads=num_heads,
@@ -141,7 +143,7 @@ diffusion = GaussianDiffusion(
     lambda_bce=0.0,
 ).cuda()
 
-dataset = RandomCrossDataset(size=(input_size, input_size, depth_size), half=True)
+dataset = RandomXDataset(size=(input_size, input_size))
 
 trainer = Trainer(
     diffusion_model=diffusion,
