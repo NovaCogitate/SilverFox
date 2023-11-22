@@ -543,6 +543,7 @@ class Trainer(object):
                     f"{self.results_folder}/model/output-{milestone}.npy",
                     output,
                 )
+                self.save(milestone)
 
             self.step += 1
 
