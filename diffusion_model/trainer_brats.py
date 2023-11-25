@@ -1,32 +1,22 @@
-# -*- coding:utf-8 -*-
-#
-# Original code is here: https://github.com/lucidrains/denoising-diffusion-pytorch
-#
-
-
-import math
 import copy
 import torch
-from torch import nn, einsum
+import datetime
+import time
+import os
+import warnings
+
 import torch.nn.functional as F
+import numpy as np
+import matplotlib.pyplot as plt
+
+from tqdm import tqdm
+from torch import nn
+
 from inspect import isfunction
 from functools import partial
 from torch.utils import data
 from pathlib import Path
 from torch.optim import Adam
-from torchvision import transforms, utils
-from PIL import Image
-import nibabel as nib
-import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-
-
-# from torch.utils.tensorboard import SummaryWriter
-import datetime
-import time
-import os
-import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -35,7 +25,7 @@ try:
 
     APEX_AVAILABLE = True
     print("APEX: ON")
-except:
+except ModuleNotFoundError:
     APEX_AVAILABLE = False
     print("APEX: OFF")
 
@@ -73,9 +63,6 @@ def loss_backwards(fp16, loss, optimizer, **kwargs):
         loss.backward(**kwargs)
 
 
-# small helper modules
-
-
 class EMA:
     def __init__(self, beta):
         super().__init__()
@@ -92,9 +79,6 @@ class EMA:
         if old is None:
             return new
         return old * self.beta + (1 - self.beta) * new
-
-
-# gaussian diffusion trainer class
 
 
 def extract(a, t, x_shape):
@@ -450,8 +434,6 @@ class Trainer(object):
 
         self.step = 0
 
-        # assert not fp16 or fp16 and APEX_AVAILABLE, 'Apex must be installed in order for mixed precision training to be turned on'
-
         self.fp16 = fp16
         if fp16:
             (self.model, self.ema_model), self.opt = amp.initialize(
@@ -463,7 +445,6 @@ class Trainer(object):
         os.makedirs(f"{results_folder}/model", exist_ok=True)
 
         self.log_dir = self.create_log_dir()
-        # self.writer = SummaryWriter(log_dir=self.log_dir)  # "./logs")
 
         self.reset_parameters()
 
@@ -483,18 +464,22 @@ class Trainer(object):
         self.ema.update_model_average(self.ema_model, self.model)
 
     def save(self, milestone):
-        data = {
+        data_to_save = {
             "step": self.step,
             "model": self.model.state_dict(),
             "ema": self.ema_model.state_dict(),
         }
-        torch.save(data, str(self.results_folder / f"model/model-{milestone}.pt"))
+        torch.save(
+            data_to_save, str(self.results_folder / f"model/model-{milestone}.pt")
+        )
 
     def load(self, milestone):
-        data = torch.load(str(self.results_folder / f"model/model-{milestone}.pt"))
-        self.step = data["step"]
-        self.model.load_state_dict(data["model"])
-        self.ema_model.load_state_dict(data["ema"])
+        data_to_load = torch.load(
+            str(self.results_folder / f"model/model-{milestone}.pt")
+        )
+        self.step = data_to_load["step"]
+        self.model.load_state_dict(data_to_load["model"])
+        self.ema_model.load_state_dict(data_to_load["ema"])
 
     def train(self):
         backwards = partial(loss_backwards, self.fp16)
@@ -502,15 +487,16 @@ class Trainer(object):
 
         while self.step < self.train_num_steps:
             accumulated_loss = []
-            for i in range(self.gradient_accumulate_every):
+            for _ in range(self.gradient_accumulate_every):
                 if self.with_condition:
-                    data = next(self.dl)
-                    input_tensors = data["input"].cuda()
-                    target_tensors = data["segmentation"].cuda()
+                    data_iter = next(self.dl)
+                    input_tensors = data_iter["input"].cuda()
+                    target_tensors = data_iter["segmentation"].cuda()
                     loss = self.model(target_tensors, condition_tensors=input_tensors)
                 else:
-                    data = next(self.dl).cuda()
-                    loss = self.model(data)
+                    data_iter = next(self.dl).cuda()
+                    loss = self.model(data_iter)
+
                 loss = loss.sum() / self.batch_size
                 print(f"{self.step}: {loss.item()}")
                 backwards(loss / self.gradient_accumulate_every, self.opt)
@@ -561,9 +547,9 @@ class Trainer(object):
                 self.save(milestone)
 
                 if len(output.shape) == 4:
-                    b, h, w, z = output.shape
+                    b, _, w, z = output.shape
                     for batch in range(b):
-                        fig, axis = plt.subplots(1, 7, figsize=(25, 5))
+                        _, axis = plt.subplots(1, 7, figsize=(25, 5))
                         half_point_z = int(w / 2)
                         half_point_x = int(z / 2)
 
@@ -640,9 +626,9 @@ class Trainer(object):
                         plt.close()
 
                 elif len(output.shape) == 3:
-                    b, h, w = output.shape
+                    b, _, w = output.shape
                     if b > 1:
-                        fig, axis = plt.subplots(1, b, figsize=(15, 5))
+                        _, axis = plt.subplots(1, b, figsize=(15, 5))
 
                         for batch, ax in enumerate(axis.flatten()):
                             ax.axis("off")
@@ -650,7 +636,7 @@ class Trainer(object):
                                 output[batch, :, :], vmin=-1, vmax=1, cmap="gray"
                             )
                     else:
-                        fig, axis = plt.subplots(1, 1, figsize=(15, 5))
+                        _, axis = plt.subplots(1, 1, figsize=(15, 5))
                         axis.axis("off")
                         axis.imshow(output[0, :, :], vmin=-1, vmax=1, cmap="gray")
                         axis.set_title("x-y plane")
@@ -673,18 +659,20 @@ class Trainer(object):
         # number of batches need to be calculated
         batches = num_to_groups(no_of_samples, batch_size)
 
-        if self.with_condition:
-            current_iter = batch_fraction * batch_size
-            previous_iter = (batch_fraction - 1) * batch_size
-            conditioning_samples_per_batch = conditioning_samples[
-                previous_iter:current_iter
-            ]
+        # Splitting the array
+        split_tensors = []
+        start = 0
+        for length in batches:
+            end = start + length
+            split_tensors.append(conditioning_samples[start:end])
+            start = end
 
+        if self.with_condition:
             all_images_list = list(
                 map(
                     lambda batch: self.ema_model.sample(
                         batch_size=batch,
-                        condition_tensors=conditioning_samples_per_batch,
+                        condition_tensors=split_tensors,
                     ),
                     batches,
                 )
@@ -701,10 +689,10 @@ class Trainer(object):
 
         if len(all_images.shape) == 5:
             all_images = all_images.detach().cpu().numpy()
-            b, c, h, w, z = all_images.shape
+            b, c, _, w, z = all_images.shape
             for channel in range(c):
                 for batch in range(b):
-                    fig, axis = plt.subplots(1, 7, figsize=(25, 5))
+                    _, axis = plt.subplots(1, 7, figsize=(25, 5))
                     half_point_z = int(w / 2)
                     half_point_x = int(z / 2)
 
