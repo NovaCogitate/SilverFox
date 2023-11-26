@@ -4,45 +4,62 @@ from torchvision.transforms import Compose, Lambda
 
 import sys
 import json
+import os
 
-sys.path.append("/home/j622s/Desktop/Silverfox/SilverFox-main")
+# e040 path to SilverFox-main
+e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
+# check if the path exists
+e040_path_exists = os.path.exists(e040_path)
+
+remote_path = "/home/j622s/SilverFox/SilverFox-main"
+remote_path_exist = os.path.exists(remote_path)
+
+if remote_path_exist and e040_path_exists:
+    raise Exception("Both paths exist!")
+elif e040_path_exists:
+    remote = False
+    sys.path.append(e040_path)
+elif remote_path_exist:
+    remote = True
+    sys.path.append(remote_path)
+else:
+    raise Exception("Path to SilverFox-main not found!")
 
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
 from diffusion_model.unet_brats import create_model
 from datasets.dataset_alien import SimplyNumpyDataset4
-import torch
-import os
 
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # configuration of data
-input_size = 512  # the size of image
+input_size = 256  # the size of image
 depth_size = 0  # the size of classes
 
-
 # configuration of training
-batchsize = 4
+batchsize = 8
 epochs = 1e8
-save_and_sample_every = 5500
+save_and_sample_every = 2500
 resume_weight = ""
-train_lr = 5e-5
+train_lr = 1e-4
 step_start_ema = 1e4
-gradient_accumulate_every = 4
+gradient_accumulate_every = 2
 update_ema_every = 10
 ema_decay = 0.995
 
 # configuration of network
-num_channels = 192
-num_res_blocks = 3
-num_heads = 2
+num_channels = 96
+num_res_blocks = 2
+num_heads = 3
 num_head_channels = -1
 num_heads_upsample = -1
 dropout = 0.05
 conv_resample = True
 dims = 2
 num_classes = 128
+resblock_updown = True
+use_new_attention_order = True
 
 in_channels = 1
 out_channels = 1
@@ -52,17 +69,23 @@ learn_sigma = False
 class_cond = True
 with_cond = False
 use_checkpoint = False
-attention_resolutions = "8,16"
+attention_resolutions = "16,8"
 use_scale_shift_norm = False
-resblock_updown = True
 use_fp16 = True
-use_new_attention_order = True
 
 # configuration of diffusion process
 timesteps = 500
 
-data_folder = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
-results_folder = "/DATA/j622s/new_dataset_7/results_2D_512"
+data_folder = (
+    "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
+    if not remote
+    else "/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/numpy_dataset_2D_128_classes"
+)
+results_folder = (
+    f"/DATA/j622s/new_dataset_7/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
+    if not remote
+    else f"/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
+)
 
 # the configs above
 config = {
