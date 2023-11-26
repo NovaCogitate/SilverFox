@@ -120,6 +120,7 @@ class GaussianDiffusion(nn.Module):
         loss_type="l1",
         betas=None,
         with_condition=False,
+        with_class_guidance=False,
         with_pairwised=False,
         apply_bce=False,
         lambda_bce=0.0,
@@ -130,6 +131,7 @@ class GaussianDiffusion(nn.Module):
         self.depth_size = depth_size
         self.denoise_fn = denoise_fn
         self.with_condition = with_condition
+        self.with_class_guidance = with_class_guidance
         self.with_pairwised = with_pairwised
         self.apply_bce = apply_bce
         self.lambda_bce = lambda_bce
@@ -229,10 +231,14 @@ class GaussianDiffusion(nn.Module):
         )
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
-    def p_mean_variance(self, x, t, clip_denoised: bool, c=None):
+    def p_mean_variance(self, x, t, clip_denoised: bool, c=None, y=None):
         if self.with_condition:
             x_recon = self.predict_start_from_noise(
                 x, t=t, noise=self.denoise_fn(torch.cat([x, c], 1), t)
+            )
+        elif self.with_class_guidance:
+            x_recon = self.predict_start_from_noise(
+                x, t=t, noise=self.denoise_fn(x, t, y=c)
             )
         else:
             x_recon = self.predict_start_from_noise(x, t=t, noise=self.denoise_fn(x, t))
@@ -247,11 +253,17 @@ class GaussianDiffusion(nn.Module):
 
     @torch.no_grad()
     def p_sample(
-        self, x, t, condition_tensors=None, clip_denoised=True, repeat_noise=False
+        self,
+        x,
+        t,
+        condition_tensors=None,
+        clip_denoised=True,
+        repeat_noise=False,
+        y=None,
     ):
         b, *_, device = *x.shape, x.device
         model_mean, _, model_log_variance = self.p_mean_variance(
-            x=x, t=t, c=condition_tensors, clip_denoised=clip_denoised
+            x=x, t=t, c=condition_tensors, clip_denoised=clip_denoised, y=y
         )
         noise = noise_like(x.shape, device, repeat_noise)
         # no noise when t == 0
@@ -259,7 +271,7 @@ class GaussianDiffusion(nn.Module):
         return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
 
     @torch.no_grad()
-    def p_sample_loop(self, shape, condition_tensors=None):
+    def p_sample_loop(self, shape, condition_tensors=None, y=None):
         device = self.betas.device
 
         b = shape[0]
@@ -273,6 +285,9 @@ class GaussianDiffusion(nn.Module):
             if self.with_condition:
                 t = torch.full((b,), i, device=device, dtype=torch.long)
                 img = self.p_sample(img, t, condition_tensors=condition_tensors)
+            elif self.with_class_guidance:
+                t = torch.full((b,), i, device=device, dtype=torch.long)
+                img = self.p_sample(img, t, y=y)
             else:
                 img = self.p_sample(
                     img, torch.full((b,), i, device=device, dtype=torch.long)
@@ -281,7 +296,7 @@ class GaussianDiffusion(nn.Module):
         return img
 
     @torch.no_grad()
-    def sample(self, batch_size=2, condition_tensors=None):
+    def sample(self, batch_size=2, condition_tensors=None, y=None):
         image_size = self.image_size
         depth_size = self.depth_size
         channels = self.channels
@@ -290,11 +305,13 @@ class GaussianDiffusion(nn.Module):
             return self.p_sample_loop(
                 (batch_size, channels, image_size, image_size),
                 condition_tensors=condition_tensors,
+                y=y,
             )
         elif depth_size > 0:
             return self.p_sample_loop(
                 (batch_size, channels, depth_size, image_size, image_size),
                 condition_tensors=condition_tensors,
+                y=y,
             )
         else:
             raise NotImplementedError()
@@ -327,13 +344,16 @@ class GaussianDiffusion(nn.Module):
             + x_hat
         )
 
-    def p_losses(self, x_start, t, condition_tensors=None, noise=None):
+    def p_losses(self, x_start, t, y=None, condition_tensors=None, noise=None):
         # b, c, h, w, d = x_start.shape
         noise = default(noise, lambda: torch.randn_like(x_start))
 
         if self.with_condition:
             x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
             x_recon = self.denoise_fn(torch.cat([x_noisy, condition_tensors], 1), t)
+        elif self.with_class_guidance:
+            x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
+            x_recon = self.denoise_fn(x_noisy, t, y=y)
         else:
             x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
             x_recon = self.denoise_fn(x_noisy, t)
@@ -401,13 +421,14 @@ class Trainer(object):
         save_and_sample_every=1000,
         results_folder="./results",
         with_condition=False,
+        with_class_guided=False,
     ):
         super().__init__()
         self.model = diffusion_model
         self.ema = EMA(ema_decay)
         self.ema_model = copy.deepcopy(self.model)
         self.update_ema_every = update_ema_every
-
+        self.with_class_guided = with_class_guided
         self.step_start_ema = step_start_ema
         self.save_and_sample_every = save_and_sample_every
 
@@ -490,9 +511,15 @@ class Trainer(object):
             for _ in range(self.gradient_accumulate_every):
                 if self.with_condition:
                     data_iter = next(self.dl)
-                    input_tensors = data_iter["input"].cuda()
-                    target_tensors = data_iter["segmentation"].cuda()
-                    loss = self.model(target_tensors, condition_tensors=input_tensors)
+                    input_tensors = data_iter[0].cuda()
+                    # target_tensors = data_iter["segmentation"].cuda()
+                    class_condition = torch.tensor(data_iter[1]).cuda()
+                    loss = self.model(input_tensors, condition_tensors=class_condition)
+                elif self.with_class_guided:
+                    data_item, class_item = next(self.dl)
+                    input_tensors = data_item.cuda()
+                    class_condition = torch.tensor(class_item).cuda()
+                    loss = self.model(input_tensors, y=class_condition)
                 else:
                     data_iter = next(self.dl).cuda()
                     loss = self.model(data_iter)
@@ -528,6 +555,19 @@ class Trainer(object):
                                 ),
                             ),
                             batches,
+                        )
+                    )
+                    all_images = torch.cat(all_images_list, dim=0)
+                elif self.with_class_guided:
+                    classes = list(range(0, 129, 16))
+                    no_of_classes = len(classes)
+                    all_images_list = list(
+                        map(
+                            lambda n: self.ema_model.sample(
+                                batch_size=n,
+                                y=torch.tensor(classes),
+                            ),
+                            [no_of_classes],
                         )
                     )
                     all_images = torch.cat(all_images_list, dim=0)
@@ -625,6 +665,25 @@ class Trainer(object):
                         )
                         plt.close()
 
+                elif len(output.shape) == 3 and self.with_class_guided:
+                    b, _, w = output.shape
+                    if b > 1:
+                        _, axis = plt.subplots(1, b, figsize=(15, 5))
+
+                        for batch, ax in enumerate(axis.flatten()):
+                            ax.axis("off")
+                            ax.imshow(output[batch, :, :], vmin=-1, vmax=1, cmap="gray")
+                    else:
+                        _, axis = plt.subplots(1, 1, figsize=(15, 5))
+                        axis.axis("off")
+                        axis.imshow(output[0, :, :], vmin=-1, vmax=1, cmap="gray")
+                        axis.set_title("x-y plane")
+
+                    plt.savefig(
+                        f"{self.results_folder}/model/output-{milestone}-{b}.png"
+                    )
+                    plt.close()
+
                 elif len(output.shape) == 3:
                     b, _, w = output.shape
                     if b > 1:
@@ -678,6 +737,16 @@ class Trainer(object):
                 )
             )
             all_images = torch.cat(all_images_list, dim=0)
+        elif self.with_class_guided:
+            all_images_list = list(
+                map(
+                    lambda n: self.ema_model.sample(batch_size=n),
+                    batches,
+                    y=torch.tensor(list(range(0, 128, 16))),
+                )
+            )
+            all_images = torch.cat(all_images_list, dim=0)
+
         else:
             all_images_list = list(
                 map(lambda n: self.ema_model.sample(batch_size=n), batches)

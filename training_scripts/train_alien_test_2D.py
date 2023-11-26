@@ -50,6 +50,7 @@ out_channels = 1
 channel_mult = ""
 learn_sigma = False
 class_cond = False
+with_cond = False
 use_checkpoint = False
 attention_resolutions = "8"
 use_scale_shift_norm = False
@@ -137,7 +138,7 @@ diffusion = GaussianDiffusion(
     timesteps=timesteps,
     loss_type="l1",
     betas=None,
-    with_condition=class_cond,
+    with_condition=with_cond,
     with_pairwised=False,
     apply_bce=False,
     lambda_bce=0.0,
@@ -159,7 +160,7 @@ trainer = Trainer(
     update_ema_every=update_ema_every,
     save_and_sample_every=save_and_sample_every,
     results_folder=results_folder,
-    with_condition=class_cond,
+    with_condition=with_cond,
 )
 
 trainer.train()

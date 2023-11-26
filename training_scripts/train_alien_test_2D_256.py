@@ -9,7 +9,7 @@ sys.path.append("/home/pedro/Desktop/Repos/SilverFox/")
 
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
 from diffusion_model.unet_brats import create_model
-from datasets.dataset_crosses import RandomXDataset
+from datasets.dataset_alien import SimplyNumpyDataset4
 import torch
 import os
 
@@ -18,16 +18,16 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # configuration of data
-input_size = 16  # the size of image
+input_size = 256  # the size of image
 depth_size = 0  # the size of classes
 
 
 # configuration of training
 batchsize = 64
 epochs = 4000
-save_and_sample_every = 100
+save_and_sample_every = 200
 resume_weight = ""
-train_lr = 5e-3
+train_lr = 1e-3
 step_start_ema = 2000
 gradient_accumulate_every = 1
 update_ema_every = 10
@@ -42,14 +42,15 @@ num_heads_upsample = -1
 dropout = 0.05
 conv_resample = True
 dims = 2
-num_classes = None
+num_classes = 128
 
 in_channels = 1
 out_channels = 1
 
 channel_mult = ""
 learn_sigma = False
-class_cond = False
+class_cond = True
+with_cond = False
 use_checkpoint = False
 attention_resolutions = "8"
 use_scale_shift_norm = False
@@ -137,13 +138,16 @@ diffusion = GaussianDiffusion(
     timesteps=timesteps,
     loss_type="l1",
     betas=None,
-    with_condition=class_cond,
+    with_condition=with_cond,
     with_pairwised=False,
     apply_bce=False,
     lambda_bce=0.0,
 ).cuda()
 
-dataset = RandomXDataset(size=(input_size, input_size))
+dataset = SimplyNumpyDataset4(
+    path_to_dataset="/home/pedro/Desktop/Repos/SilverFox_data/numpy_dataset_2D_128_classes",
+    output_size=input_size,
+)
 
 trainer = Trainer(
     diffusion_model=diffusion,
@@ -159,7 +163,8 @@ trainer = Trainer(
     update_ema_every=update_ema_every,
     save_and_sample_every=save_and_sample_every,
     results_folder=results_folder,
-    with_condition=class_cond,
+    with_condition=with_cond,
+    with_class_guided=class_cond,
 )
 
 trainer.train()
