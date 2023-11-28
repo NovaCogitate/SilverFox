@@ -1,17 +1,23 @@
-# -*- coding:utf-8 -*-
-import nibabel as nib
-from torchvision.transforms import Compose, Lambda
-
+import os
 import sys
 import json
 
-sys.path.append("/home/pedro/Desktop/Repos/SilverFox/")
+home_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
+home_path = home_path if os.path.exists(home_path) else ""
+
+docker_path = "/app/"
+docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
+
+if home_path:
+    sys.path.append(home_path)
+elif docker_path:
+    sys.path.append(docker_path)
+else:
+    raise ValueError("Please specify the path of the project")
 
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
 from diffusion_model.unet_brats import create_model
 from datasets.dataset_crosses import RandomXDataset
-import torch
-import os
 
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

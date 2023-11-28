@@ -6,15 +6,7 @@ ENV TZ=Europe/Amsterdam  \
 
 RUN apt-get -y update
 RUN apt-get -y upgrade
-RUN apt-get install -y build-essential --no-install-recommends
-RUN apt-get install -y curl --no-install-recommends
-RUN apt-get install -y git --no-install-recommends
-RUN apt-get install -y python3.8 --no-install-recommends
-RUN apt-get install -y python3.8-dev --no-install-recommends
-RUN apt-get install -y python3-pip --no-install-recommends
-RUN apt-get install -y python3.8-venv --no-install-recommends
-RUN apt-get install -y python3.8-distutils --no-install-recommends
-RUN apt-get install -y python-is-python3 --no-install-recommends
+RUN apt-get install -y build-essential curl git python3.8 python3-pip python-is-python3
 
 # # Use curl to install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 - 
@@ -30,6 +22,11 @@ RUN poetry config virtualenvs.create true
 RUN poetry config virtualenvs.in-project true
 RUN poetry config installer.max-workers 10
 RUN poetry install --no-root # .max-workers 10
+
+# install apex?
+RUN git clone https://github.com/NVIDIA/apex
+RUN poetry run python -m pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --global-option=--cpp_ext --global-option=--cuda_ext /app/apex/
+
 
 # # Set the default command for the container to Python shell
 CMD ["python"]

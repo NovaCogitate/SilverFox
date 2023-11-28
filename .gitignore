@@ -168,3 +168,4 @@ results_3D
 # not tracking the lock file. 
 .venv 
 poetry.lock
+data_folder

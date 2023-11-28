@@ -16,6 +16,7 @@ sympy = "^1.12"
 tqdm = "^4.66.1"
 apex = "^0.9.10.dev0"
 packaging = "^23.2"
+wheel = "^0.42.0"
 
 
 [tool.poetry.group.dev.dependencies]
