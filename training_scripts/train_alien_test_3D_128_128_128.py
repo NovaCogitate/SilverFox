@@ -36,7 +36,7 @@ depth_size = 128  # the size of classes
 # configuration of training
 batchsize = 8
 epochs = 20000
-save_and_sample_every = 100
+save_and_sample_every = 500
 resume_weight = ""
 train_lr = 5e-4
 step_start_ema = 2000

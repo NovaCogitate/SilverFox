@@ -30,3 +30,14 @@ RUN poetry run python -m pip install -v --disable-pip-version-check --no-cache-d
 
 # # Set the default command for the container to Python shell
 CMD ["python"]
+
+
+# docker run -v /home/pedro/Desktop/Repos/SilverFox_docker_out:/app/results silverfox5 poetry run python /app/training_scripts/160_channels/1_head/train_alien_test_2D_256_16,8.py
+
+# docker run --gpus all -v /home/pedro/Desktop/Repos/SilverFox_docker_out:/app/results silverfox5 poetry run python /app/training_scripts/160_channels/1_head/train_alien_test_2D_256_8.py
+
+# copy the file
+# scp ./silverfox5.tar j622s@odcf-worker02.dkfz.de:/dkfz/cluster/gpu/data/OE0094/j622s/SilverDocker/
+
+# output in the dkfz folder 
+
