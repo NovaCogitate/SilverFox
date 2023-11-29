@@ -1,16 +1,20 @@
-# -*- coding:utf-8 -*-
 import os
 import sys
 import json
 
-home_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
-home_path = home_path if os.path.exists(home_path) else ""
+home_path = "/home/pedro/Desktop/Repos/SilverFox"
+home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
+
+e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
+e040_path = home_path if os.path.exists(home_path) else ""
 
 docker_path = "/app/"
 docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
 
 if home_path:
     sys.path.append(home_path)
+elif e040_path:
+    sys.path.append(e040_path)
 elif docker_path:
     sys.path.append(docker_path)
 else:

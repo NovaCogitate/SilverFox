@@ -1,25 +1,36 @@
-# -*- coding:utf-8 -*-
-import nibabel as nib
-from torchvision.transforms import Compose, Lambda
-
+import os
 import sys
 import json
 
-sys.path.append("/home/pedro/Desktop/Repos/SilverFox/")
+home_path = "/home/pedro/Desktop/Repos/SilverFox"
+home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
+
+e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
+e040_path = home_path if os.path.exists(home_path) else ""
+
+docker_path = "/app/"
+docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
+
+if home_path:
+    sys.path.append(home_path)
+elif e040_path:
+    sys.path.append(e040_path)
+elif docker_path:
+    sys.path.append(docker_path)
+else:
+    raise ValueError("Please specify the path of the project")
 
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
 from diffusion_model.unet_brats import create_model
 from datasets.dataset_alien import Simply3D
-import torch
-import os
 
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # configuration of data
-input_size = 32  # the size of image
-depth_size = 32  # the size of classes
+input_size = 128  # the size of image
+depth_size = 128  # the size of classes
 
 
 # configuration of training

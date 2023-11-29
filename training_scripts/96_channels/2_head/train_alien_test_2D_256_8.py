@@ -1,33 +1,15 @@
-# -*- coding:utf-8 -*-
-import nibabel as nib
-from torchvision.transforms import Compose, Lambda
-
 import sys
 import json
 import os
 
-# e040 path to SilverFox-main
+home_path = "/home/pedro/Desktop/Repos/SilverFox"
+home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
+
 e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
-# check if the path exists
-e040_path_exists = os.path.exists(e040_path)
+e040_path = e040_path if os.path.exists(e040_path) else ""
 
-remote_path = "/home/j622s/SilverFox/SilverFox-main"
-remote_path_exist = os.path.exists(remote_path)
-
-if remote_path_exist and e040_path_exists:
-    raise Exception("Both paths exist!")
-elif e040_path_exists:
-    remote = False
-    sys.path.append(e040_path)
-elif remote_path_exist:
-    remote = True
-    sys.path.append(remote_path)
-else:
-    raise Exception("Path to SilverFox-main not found!")
-
-from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
-from diffusion_model.unet_brats import create_model
-from datasets.dataset_alien import SimplyNumpyDataset4
+docker_path = "/app/"
+docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
 
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -38,18 +20,18 @@ input_size = 256  # the size of image
 depth_size = 0  # the size of classes
 
 # configuration of training
-batchsize = 16
+batchsize = 8
 epochs = 1e8
 save_and_sample_every = 2500
 resume_weight = ""
 train_lr = 1e-4
 step_start_ema = 1e4
-gradient_accumulate_every = 1
+gradient_accumulate_every = 2
 update_ema_every = 10
 ema_decay = 0.995
 
 # configuration of network
-num_channels = 96
+num_channels = 160
 num_res_blocks = 1
 num_heads = 2
 num_head_channels = -1
@@ -76,16 +58,33 @@ use_fp16 = True
 # configuration of diffusion process
 timesteps = 500
 
-data_folder = (
-    "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
-    if not remote
-    else "/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/numpy_dataset_2D_128_classes"
-)
-results_folder = (
-    f"/DATA/j622s/new_dataset_7/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
-    if not remote
-    else f"/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
-)
+if (
+    home_path
+    and os.path.exists(os.path.join(home_path, "Dockerfile"))
+    and e040_path
+    and os.path.exists(os.path.join(e040_path, "Dockerfile"))
+):
+    raise ValueError("Both paths exist!")
+elif os.path.exists(home_path):
+    sys.path.append(home_path)
+    data_folder = (
+        "/home/pedro/Desktop/Repos/SilverFox_data/numpy_dataset_2D_128_classes"
+    )
+    results_folder = f"/home/pedro/Desktop/Repos/results/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
+elif os.path.exists(e040_path):
+    sys.path.append(e040_path)
+    data_folder = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
+    results_folder = f"/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
+elif docker_path:
+    sys.path.append(docker_path)
+    data_folder = "/app/data_folder/numpy_dataset_2D_128_classes"
+    results_folder = f"/app/results/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
+else:
+    raise FileNotFoundError("Path to SilverFox-main not found!")
+
+from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
+from diffusion_model.unet_brats import create_model
+from datasets.dataset_alien import SimplyNumpyDataset4
 
 # the configs above
 config = {
@@ -127,7 +126,7 @@ config = {
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 
-with open(os.path.join(results_folder, "config.txt"), "w") as f:
+with open(os.path.join(results_folder, "config.txt"), "w", encoding="utf-8") as f:
     json.dump(config, f)
 
 model = create_model(
