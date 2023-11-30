@@ -126,44 +126,45 @@ for images in dataloader_3D:
     break
 
 
-# simple variable configuration
-
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # configuration of data
-input_size = INPUT_SIZE  # the size of image
-depth_size = INPUT_SIZE  # the size of classes
+# configuration of data
+input_size = 16  # the size of image
+depth_size = 0  # the size of classes
 
 
 # configuration of training
-batchsize = 5
-epochs = 2
-save_and_sample_every = 2
+batchsize = 64
+epochs = 20
+save_and_sample_every = 10
 resume_weight = ""
-train_lr = 5e-4
+train_lr = 1e-3
 step_start_ema = 2000
 gradient_accumulate_every = 1
 update_ema_every = 10
 ema_decay = 0.995
 
 # configuration of network
-num_channels = 64
+num_channels = 32
 num_res_blocks = 2
 num_heads = 1
 num_head_channels = -1
 num_heads_upsample = -1
 dropout = 0.05
 conv_resample = True
-num_classes = None
+dims = 2
+num_classes = 128
 
 in_channels = 1
 out_channels = 1
 
 channel_mult = ""
 learn_sigma = False
-class_cond = False
+class_cond = True
+with_cond = False
 use_checkpoint = False
 attention_resolutions = "8"
 use_scale_shift_norm = False
@@ -176,7 +177,7 @@ timesteps = 10
 
 # check if the real data 2D dataset works
 dims = 2
-DEFAULT_DATA_FOLDER = "/app/data_folder/numpy_dataset_2D_128_classes"
+DEFAULT_DATA_FOLDER = "/app/dataset/numpy_dataset_2D_128_classes"
 DEFAULT_OUTPUT_FOLDER = f"/app/results/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
 
 dataset_real_2D = SimplyNumpyDataset4(
@@ -198,6 +199,8 @@ model = create_model(
     in_channels=in_channels,
     out_channels=out_channels,
     class_cond=class_cond,
+    conv_resample=conv_resample,
+    dims=dims,
     use_checkpoint=use_checkpoint,
     attention_resolutions=attention_resolutions,
     num_heads=num_heads,
@@ -218,7 +221,7 @@ diffusion = GaussianDiffusion(
     timesteps=timesteps,
     loss_type="l1",
     betas=None,
-    with_condition=class_cond,
+    with_condition=with_cond,
     with_pairwised=False,
     apply_bce=False,
     lambda_bce=0.0,
@@ -238,80 +241,117 @@ trainer = Trainer(
     update_ema_every=update_ema_every,
     save_and_sample_every=save_and_sample_every,
     results_folder=DEFAULT_OUTPUT_FOLDER,
-    with_condition=class_cond,
+    with_condition=with_cond,
+    with_class_guided=class_cond,
 )
 
 trainer.train()
 
-# # check if the real data 3D dataset works
-# dims = 3
-# DEFAULT_DATA_FOLDER = "/app/data_folder/numpy_dataset_2D_128_classes"
-# DEFAULT_OUTPUT_FOLDER = f"/app/results/results_3D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
+# check if the real data 3D dataset works
+dims = 3
+DEFAULT_DATA_FOLDER = "/app/data_folder/numpy_dataset_2D_128_classes"
+DEFAULT_OUTPUT_FOLDER = f"/app/results/results_3D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
 
+# configuration of data
+input_size = 16  # the size of image
+depth_size = 16  # the size of classes
 
-# dataset_real_3D = Simply3D(
-#     "/home/pedro/Desktop/Repos/SilverFox_data/3D_data",
-#     output_size=input_size,
-#     depth_size=depth_size,
-# )
+# configuration of training
+batchsize = 8
+epochs = 20000
+save_and_sample_every = 500
+resume_weight = ""
+train_lr = 5e-4
+step_start_ema = 2000
+gradient_accumulate_every = 1
+update_ema_every = 10
+ema_decay = 0.995
 
-# check if the real data 2D dataset works
+# configuration of network
+num_channels = 64
+num_res_blocks = 3
+num_heads = 1
+num_head_channels = -1
+num_heads_upsample = -1
+dropout = 0.05
+conv_resample = True
+dims = 3
+num_classes = None
 
-# # create a real 2D dataloader
-# dataloader_real_3D = torch.utils.data.DataLoader(
-#     dataset_real_3D, batch_size=5, shuffle=True
-# )
+in_channels = 1
+out_channels = 1
 
-# model = create_model(
-#     image_size=input_size,
-#     num_channels=num_channels,
-#     num_res_blocks=num_res_blocks,
-#     channel_mult=channel_mult,
-#     learn_sigma=learn_sigma,
-#     in_channels=in_channels,
-#     out_channels=out_channels,
-#     class_cond=class_cond,
-#     use_checkpoint=use_checkpoint,
-#     attention_resolutions=attention_resolutions,
-#     num_heads=num_heads,
-#     num_head_channels=num_head_channels,
-#     num_heads_upsample=num_heads_upsample,
-#     use_scale_shift_norm=use_scale_shift_norm,
-#     dropout=dropout,
-#     resblock_updown=resblock_updown,
-#     use_fp16=use_fp16,
-#     use_new_attention_order=use_new_attention_order,
-# ).cuda()
+channel_mult = ""
+learn_sigma = False
+class_cond = False
+use_checkpoint = False
+attention_resolutions = "16,8"
+use_scale_shift_norm = False
+resblock_updown = True
+use_fp16 = True
+use_new_attention_order = True
 
-# diffusion = GaussianDiffusion(
-#     denoise_fn=model,
-#     image_size=input_size,
-#     depth_size=depth_size,
-#     channels=in_channels,
-#     timesteps=timesteps,
-#     loss_type="l1",
-#     betas=None,
-#     with_condition=class_cond,
-#     with_pairwised=False,
-#     apply_bce=False,
-#     lambda_bce=0.0,
-# ).cuda()
+# configuration of diffusion process
+timesteps = 10
 
-# trainer = Trainer(
-#     diffusion_model=diffusion,
-#     dataset=dataset_real_2D,
-#     ema_decay=ema_decay,
-#     depth_size=depth_size,
-#     train_batch_size=batchsize,
-#     train_lr=train_lr,
-#     train_num_steps=epochs,
-#     gradient_accumulate_every=gradient_accumulate_every,
-#     fp16=use_fp16,
-#     step_start_ema=step_start_ema,
-#     update_ema_every=update_ema_every,
-#     save_and_sample_every=save_and_sample_every,
-#     results_folder=DEFAULT_OUTPUT_FOLDER,
-#     with_condition=class_cond,
-# )
+dataset_real_3D = Simply3D(
+    DEFAULT_DATA_FOLDER,
+    output_size=input_size,
+    depth_size=depth_size,
+)
 
-# trainer.train()
+model = create_model(
+    image_size=input_size,
+    num_channels=num_channels,
+    num_res_blocks=num_res_blocks,
+    channel_mult=channel_mult,
+    learn_sigma=learn_sigma,
+    in_channels=in_channels,
+    out_channels=out_channels,
+    class_cond=class_cond,
+    conv_resample=conv_resample,
+    dims=dims,
+    use_checkpoint=use_checkpoint,
+    attention_resolutions=attention_resolutions,
+    num_heads=num_heads,
+    num_head_channels=num_head_channels,
+    num_heads_upsample=num_heads_upsample,
+    use_scale_shift_norm=use_scale_shift_norm,
+    dropout=dropout,
+    resblock_updown=resblock_updown,
+    use_fp16=use_fp16,
+    use_new_attention_order=use_new_attention_order,
+).cuda()
+
+diffusion = GaussianDiffusion(
+    denoise_fn=model,
+    image_size=input_size,
+    depth_size=depth_size,
+    channels=in_channels,
+    timesteps=timesteps,
+    loss_type="l1",
+    betas=None,
+    with_condition=with_cond,
+    with_pairwised=False,
+    apply_bce=False,
+    lambda_bce=0.0,
+).cuda()
+
+trainer = Trainer(
+    diffusion_model=diffusion,
+    dataset=dataset_real_3D,
+    ema_decay=ema_decay,
+    depth_size=depth_size,
+    train_batch_size=batchsize,
+    train_lr=train_lr,
+    train_num_steps=epochs,
+    gradient_accumulate_every=gradient_accumulate_every,
+    fp16=use_fp16,
+    step_start_ema=step_start_ema,
+    update_ema_every=update_ema_every,
+    save_and_sample_every=save_and_sample_every,
+    results_folder=DEFAULT_OUTPUT_FOLDER,
+    with_condition=class_cond,
+)
+
+trainer.train()
