@@ -46,7 +46,7 @@ ema_decay = 0.995
 
 # configuration of network
 num_channels = 64
-num_res_blocks = 2
+num_res_blocks = 3
 num_heads = 1
 num_head_channels = -1
 num_heads_upsample = -1
@@ -62,7 +62,7 @@ channel_mult = ""
 learn_sigma = False
 class_cond = False
 use_checkpoint = False
-attention_resolutions = "8"
+attention_resolutions = "16,8"
 use_scale_shift_norm = False
 resblock_updown = True
 use_fp16 = True
@@ -72,7 +72,7 @@ use_new_attention_order = True
 timesteps = 250
 
 data_folder = ""
-results_folder = "./results_3D_test"
+results_folder = "/DATA/j622s/new_dataset_7/3D_output"
 
 # the configs above
 config = {
@@ -152,8 +152,14 @@ diffusion = GaussianDiffusion(
     lambda_bce=0.0,
 ).cuda()
 
+# if os.path.exists("/app/data_3D"):
+#     data_folder = "/app/data_3D"
+# else:
+#     raise ValueError("Please specify the path of the data")
+
+data_folder = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
 dataset = Simply3D(
-    "/home/pedro/Desktop/Repos/SilverFox_data/3D_data",
+    data_folder,
     output_size=input_size,
     depth_size=depth_size,
 )
