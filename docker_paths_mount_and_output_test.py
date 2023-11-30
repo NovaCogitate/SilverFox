@@ -249,7 +249,7 @@ trainer.train()
 
 # check if the real data 3D dataset works
 dims = 3
-DEFAULT_DATA_FOLDER = "/app/data_folder/numpy_dataset_2D_128_classes"
+DEFAULT_DATA_FOLDER = "/app/datafolder/numpy_dataset_2D_128_classes"
 DEFAULT_OUTPUT_FOLDER = f"/app/results/results_3D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
 
 # configuration of data
