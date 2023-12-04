@@ -144,13 +144,13 @@ data_folder="/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/3D_d
 data_folder_3D="/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/numpy_dataset_2D_128_classes"
 result_output="/dkfz/cluster/gpu/data/OE0094/j622s/SilverOut_results"
 
-export LSB_CONTAINER_IMAGE="/dkfz/cluster/gpu/data/OE0094/j622s/apptaimer/pulldir/silverfox_latest.sif" 
-
 export CLUSTER_CONTAINER_OPTIONS="--bind=$result_output/results_2D:/app/results_2D \
                                   --bind=$result_output/results:/app/results \
                                   --bind=$result_output/results_3D:/app/results_3D \
                                   --bind=$data_folder:/app/dataset/numpy_dataset_2D_128_classes \
                                   --bind=$data_folder_3D:/app/dataset/3D_data"
+
+export LSB_CONTAINER_IMAGE="/dkfz/cluster/gpu/data/OE0094/j622s/apptaimer/pulldir/silverfox_latest.sif" 
 
 
 # Set memory requirement
@@ -162,11 +162,41 @@ bsub -q gpu -R "rusage[mem=$memory]" -app apptainer-generic \
      poetry run python /app/docker_paths_mount_and_output_test.py
 
 
-
-
-
 apptainer shell /dkfz/cluster/gpu/data/OE0094/j622s/apptaimer/pulldir/silverfox_latest.sif
 
+# Set memory requirement
+memory="20G"
+
+# set the image path 
+export LSB_CONTAINER_IMAGE="/dkfz/cluster/gpu/data/OE0094/j622s/apptaimer/container_2.sif"
+
+# set the container options
+result_output="/dkfz/cluster/gpu/data/OE0094/j622s/SilverOut_results"
+command="/app/.venv/bin/python -c \"import torch; print('Torch version:', torch.__version__, '| CUDA available:', torch.cuda.is_available())\""
+export CLUSTER_CONTAINER_OPTIONS="--nv"
+
+# Submit the job if the variable $CLUSTER_CONTAINER_OPTIONS is set 
+if [ -z ${CLUSTER_CONTAINER_OPTIONS+x} ]; then 
+    bsub -q gpu -R "rusage[mem=$memory]" -app apptainer-generic "$command"
+else 
+    echo "CLUSTER_CONTAINER_OPTIONS is set to '$CLUSTER_CONTAINER_OPTIONS'"
+    bsub -q gpu -R "rusage[mem=$memory]" -app apptainer-generic \
+         --env "CLUSTER_CONTAINER_OPTIONS=$CLUSTER_CONTAINER_OPTIONS" \
+        "$command"
+fi
 
 
 
+
+
+# Set memory requirement
+memory="20G"
+
+# Set the image path 
+export LSB_CONTAINER_IMAGE="/dkfz/cluster/gpu/data/OE0094/j622s/apptaimer/container_2.sif"
+
+# Set the container options
+command="/app/.venv/bin/python -c \"import torch; print('Torch version:', torch.__version__, '| CUDA available:', torch.cuda.is_available())\""
+
+# Submit the job
+bsub -q gpu -R "rusage[mem=$memory]" -app apptainer-generic "$command"
