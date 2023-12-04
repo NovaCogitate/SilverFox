@@ -503,6 +503,7 @@ class Trainer(object):
         self.ema_model.load_state_dict(data_to_load["ema"])
 
     def train(self):
+        loss_values = []
         backwards = partial(loss_backwards, self.fp16)
         start_time = time.time()
 
@@ -531,6 +532,7 @@ class Trainer(object):
 
             # Record here
             average_loss = np.mean(accumulated_loss)
+            loss_values.append(average_loss)
             end_time = time.time()
             print("training_loss", average_loss, self.step)
             # self.writer.add_scalar("training_loss", average_loss, self.step)
@@ -542,6 +544,30 @@ class Trainer(object):
                 self.step_ema()
 
             if self.step != 0 and self.step % self.save_and_sample_every == 0:
+                # save the losses and the rolling average losses
+                np.save(
+                    f"{self.results_folder}/model/loss_values.npy",
+                    np.array(loss_values),
+                )
+                # draw a plot
+                # calculate the rolling avarages
+                rolling_average = []
+
+                for i in range(len(loss_values)):
+                    if i < 10:
+                        rolling_average.append(loss_values[i])
+                    else:
+                        rolling_average.append(np.mean(loss_values[i - 10 : i]))
+
+                plt.plot(rolling_average)
+                plt.plot(loss_values)
+
+                plt.title("Loss values")
+                plt.xlabel("Steps")
+                plt.ylabel("Loss")
+
+                plt.savefig(f"{self.results_folder}/model/loss_values.png")
+
                 milestone = self.step // self.save_and_sample_every
                 batches = num_to_groups(1, self.batch_size)
 

@@ -6,7 +6,7 @@ home_path = "/home/pedro/Desktop/Repos/SilverFox"
 home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
 
 e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
-e040_path = home_path if os.path.exists(home_path) else ""
+e040_path = e040_path if os.path.exists(home_path) else ""
 
 docker_path = "/app/"
 docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""

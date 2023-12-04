@@ -5,17 +5,17 @@ import json
 home_path = "/home/pedro/Desktop/Repos/SilverFox"
 home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
 
-e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
-e040_path = home_path if os.path.exists(home_path) else ""
+e040_path = "/home/j622s/Desktop/SilverFox"
+e040_path = e040_path if os.path.exists(os.path.join(e040_path, "Dockerfile")) else ""
 
 docker_path = "/app/"
 docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
 
-if home_path:
+if home_path and not any([e040_path, docker_path]):
     sys.path.append(home_path)
-elif e040_path:
+elif e040_path and not any([home_path, docker_path]):
     sys.path.append(e040_path)
-elif docker_path:
+elif docker_path and not any([home_path, e040_path]):
     sys.path.append(docker_path)
 else:
     raise ValueError("Please specify the path of the project")
@@ -36,11 +36,11 @@ depth_size = 0  # the size of classes
 # configuration of training
 batchsize = 4
 epochs = 1e8
-save_and_sample_every = 5500
+save_and_sample_every = 500
 resume_weight = ""
 train_lr = 5e-5
 step_start_ema = 1e4
-gradient_accumulate_every = 4
+gradient_accumulate_every = 2
 update_ema_every = 10
 ema_decay = 0.995
 
