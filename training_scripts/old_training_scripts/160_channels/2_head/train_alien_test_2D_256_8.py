@@ -1,52 +1,67 @@
-import os
 import sys
 import json
+import os
 
-home_path = "/home/pedro/Desktop/Repos/SilverFox"
-home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
-
+# all the possible working paths.
+home_pc_path = "/home/pedro/Desktop/Repos/SilverFox"
+laptop_path = "/home/pedro/Desktop/Local_re_Work/SilverFox"
 e040_path = "/home/j622s/Desktop/SilverFox"
-e040_path = e040_path if os.path.exists(os.path.join(e040_path, "Dockerfile")) else ""
-
+odcf_path = "/home/j622s/SilverFox"
 docker_path = "/app/"
-docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
 
-if home_path and not any([e040_path, docker_path]):
-    sys.path.append(home_path)
-elif e040_path and not any([home_path, docker_path]):
-    sys.path.append(e040_path)
-elif docker_path and not any([home_path, e040_path]):
-    sys.path.append(docker_path)
+# go to a random file and check if the location exists. In this case the docker file.
+home_exists = os.path.exists(os.path.join(home_pc_path, "Dockerfile"))
+laptop_exists = os.path.exists(os.path.join(laptop_path, "Dockerfile"))
+e040_exists = os.path.exists(os.path.join(e040_path, "Dockerfile"))
+odcf_exists = os.path.exists(os.path.join(odcf_path, "Dockerfile"))
+docker_exists = os.path.exists(os.path.join(docker_path, "Dockerfile"))
+
+total_true_conditions = sum(
+    [home_exists, laptop_exists, e040_exists, odcf_exists, docker_exists]
+)
+if total_true_conditions > 1:
+    raise ValueError("More than one path exists!")
+elif total_true_conditions == 0:
+    raise FileNotFoundError("Path to SilverFox-main not found!")
 else:
-    raise ValueError("Please specify the path of the project")
+    pass
 
-from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
-from diffusion_model.unet_brats import create_model
-from datasets.dataset_alien import SimplyNumpyDataset4
+home_data_path = "/home/pedro/Desktop/Repos/SilverFox_data/numpy_dataset_2D_128_classes"
+laptop_data_path = (
+    "/home/pedro/Desktop/Local_re_Work/SilverFox_data/numpy_dataset_2D_128_classes"
+)
+e040_data_path = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
+odcf_data_path = "/dkfz/cluster/gpu/data/OE0094/j622s/numpy_dataset_2D_128_classes"
+docker_data_path = "/app/data_folder/numpy_dataset_2D_128_classes"
+
+home_results_path = "/home/pedro/Desktop/Repos/results/"
+laptop_results_path = "/home/pedro/Desktop/Local_re_Work/fox_output"
+e040_results_path = "/DATA/j622s/new_dataset_7/output/SilverResults"
+odcf_results_path = "/dkfz/cluster/gpu/data/OE0094/j622s/SilverResults"
+docker_results_path = "app/results/"
 
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # configuration of data
-input_size = 512  # the size of image
+input_size = 256  # the size of image
 depth_size = 0  # the size of classes
 
-
 # configuration of training
-batchsize = 4
+batchsize = 8
 epochs = 1e7
-save_and_sample_every = 500
+save_and_sample_every = 2500
 resume_weight = ""
-train_lr = 5e-5
+train_lr = 1e-4
 step_start_ema = 1e4
 gradient_accumulate_every = 2
 update_ema_every = 10
 ema_decay = 0.995
 
 # configuration of network
-num_channels = 192
-num_res_blocks = 3
+num_channels = 160
+num_res_blocks = 1
 num_heads = 2
 num_head_channels = -1
 num_heads_upsample = -1
@@ -54,6 +69,8 @@ dropout = 0.05
 conv_resample = True
 dims = 2
 num_classes = 128
+resblock_updown = True
+use_new_attention_order = True
 
 in_channels = 1
 out_channels = 1
@@ -63,17 +80,39 @@ learn_sigma = False
 class_cond = True
 with_cond = False
 use_checkpoint = False
-attention_resolutions = "8,16"
+attention_resolutions = "8"
 use_scale_shift_norm = False
-resblock_updown = True
 use_fp16 = True
-use_new_attention_order = True
-
-# configuration of diffusion process
 timesteps = 500
+result_name = f"results_2D_{input_size}_nc:{num_channels}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}_nh:{num_heads}_nrb:{num_res_blocks}"
 
-data_folder = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
-results_folder = "/DATA/j622s/new_dataset_7/results_2D_512"
+if home_exists:
+    data_folder = home_data_path
+    results_folder = home_results_path + "/" + result_name
+    sys.path.append(home_pc_path)
+elif laptop_exists:
+    data_folder = laptop_data_path
+    results_folder = laptop_results_path + "/" + result_name
+    sys.path.append(laptop_path)
+elif e040_exists:
+    data_folder = e040_data_path
+    results_folder = e040_results_path + "/" + result_name
+    sys.path.append(e040_path)
+elif odcf_exists:
+    data_folder = odcf_data_path
+    results_folder = odcf_results_path + "/" + result_name
+    sys.path.append(odcf_path)
+elif docker_exists:
+    data_folder = docker_data_path
+    results_folder = docker_results_path + "/" + result_name
+    sys.path.append(docker_path)
+else:
+    raise FileNotFoundError("Path to SilverFox-main not found!")
+    raise FileNotFoundError("Path to SilverFox-main not found!")
+
+from diffusion_model.trainer_brats import GaussianDiffusion, Trainer
+from diffusion_model.unet_brats import create_model
+from datasets.dataset_alien import SimplyNumpyDataset4
 
 # the configs above
 config = {
@@ -115,7 +154,7 @@ config = {
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
 
-with open(os.path.join(results_folder, "config.txt"), "w") as f:
+with open(os.path.join(results_folder, "config.txt"), "w", encoding="utf-8") as f:
     json.dump(config, f)
 
 model = create_model(

@@ -2,14 +2,43 @@ import sys
 import json
 import os
 
-home_path = "/home/pedro/Desktop/Repos/SilverFox"
-home_path = home_path if os.path.exists(os.path.join(home_path, "Dockerfile")) else ""
-
-e040_path = "/home/j622s/Desktop/Silverfox/SilverFox-main"
-e040_path = e040_path if os.path.exists(e040_path) else ""
-
+# all the possible working paths.
+home_pc_path = "/home/pedro/Desktop/Repos/SilverFox"
+laptop_path = "/home/pedro/Desktop/Local_re_Work/SilverFox"
+e040_path = "/home/j622s/Desktop/SilverFox"
+odcf_path = "/home/j622s/SilverFox"
 docker_path = "/app/"
-docker_path = docker_path if os.path.exists(os.path.join("/app", "Dockerfile")) else ""
+
+# go to a random file and check if the location exists. In this case the docker file.
+home_exists = os.path.exists(os.path.join(home_pc_path, "Dockerfile"))
+laptop_exists = os.path.exists(os.path.join(laptop_path, "Dockerfile"))
+e040_exists = os.path.exists(os.path.join(e040_path, "Dockerfile"))
+odcf_exists = os.path.exists(os.path.join(odcf_path, "Dockerfile"))
+docker_exists = os.path.exists(os.path.join(docker_path, "Dockerfile"))
+
+total_true_conditions = sum(
+    [home_exists, laptop_exists, e040_exists, odcf_exists, docker_exists]
+)
+if total_true_conditions > 1:
+    raise ValueError("More than one path exists!")
+elif total_true_conditions == 0:
+    raise FileNotFoundError("Path to SilverFox-main not found!")
+else:
+    pass
+
+home_data_path = "/home/pedro/Desktop/Repos/SilverFox_data/numpy_dataset_2D_128_classes"
+laptop_data_path = (
+    "/home/pedro/Desktop/Local_re_Work/SilverFox_data/numpy_dataset_2D_128_classes"
+)
+e040_data_path = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
+odcf_data_path = "/dkfz/cluster/gpu/data/OE0094/j622s/numpy_dataset_2D_128_classes"
+docker_data_path = "/app/data_folder/numpy_dataset_2D_128_classes"
+
+home_results_path = "/home/pedro/Desktop/Repos/results/"
+laptop_results_path = "/home/pedro/Desktop/Local_re_Work/fox_output"
+e040_results_path = "/DATA/j622s/new_dataset_7/output/SilverResults"
+odcf_results_path = "/dkfz/cluster/gpu/data/OE0094/j622s/SilverResults"
+docker_results_path = "app/results/"
 
 # Setting CUDA environment
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -21,7 +50,7 @@ depth_size = 0  # the size of classes
 
 # configuration of training
 batchsize = 8
-epochs = 1e8
+epochs = 1e7
 save_and_sample_every = 2500
 resume_weight = ""
 train_lr = 1e-4
@@ -31,9 +60,9 @@ update_ema_every = 10
 ema_decay = 0.995
 
 # configuration of network
-num_channels = 96
-num_res_blocks = 2
-num_heads = 3
+num_channels = 160
+num_res_blocks = 1
+num_heads = 1
 num_head_channels = -1
 num_heads_upsample = -1
 dropout = 0.05
@@ -54,32 +83,31 @@ use_checkpoint = False
 attention_resolutions = "8"
 use_scale_shift_norm = False
 use_fp16 = True
-
-# configuration of diffusion process
 timesteps = 500
+result_name = f"results_2D_{input_size}_nc:{num_channels}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}_nh:{num_heads}_nrb:{num_res_blocks}"
 
-if (
-    home_path
-    and os.path.exists(os.path.join(home_path, "Dockerfile"))
-    and e040_path
-    and os.path.exists(os.path.join(e040_path, "Dockerfile"))
-):
-    raise ValueError("Both paths exist!")
-elif os.path.exists(home_path):
-    sys.path.append(home_path)
-    data_folder = (
-        "/home/pedro/Desktop/Repos/SilverFox_data/numpy_dataset_2D_128_classes"
-    )
-    results_folder = f"/home/pedro/Desktop/Repos/results/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
-elif os.path.exists(e040_path):
+if home_exists:
+    data_folder = home_data_path
+    results_folder = home_results_path + "/" + result_name
+    sys.path.append(home_pc_path)
+elif laptop_exists:
+    data_folder = laptop_data_path
+    results_folder = laptop_results_path + "/" + result_name
+    sys.path.append(laptop_path)
+elif e040_exists:
+    data_folder = e040_data_path
+    results_folder = e040_results_path + "/" + result_name
     sys.path.append(e040_path)
-    data_folder = "/DATA/j622s/new_dataset_7/numpy_dataset_2D_128_classes"
-    results_folder = f"/dkfz/cluster/gpu/data/OE0094/j622s/all_over_again_post_crisis/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
-elif docker_path:
+elif odcf_exists:
+    data_folder = odcf_data_path
+    results_folder = odcf_results_path + "/" + result_name
+    sys.path.append(odcf_path)
+elif docker_exists:
+    data_folder = docker_data_path
+    results_folder = docker_results_path + "/" + result_name
     sys.path.append(docker_path)
-    data_folder = "/app/data_folder/numpy_dataset_2D_128_classes"
-    results_folder = f"/app/results/results_2D_{input_size}_nc:{num_channels}_nrb:{num_res_blocks}_nh:{num_heads}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}"
 else:
+    raise FileNotFoundError("Path to SilverFox-main not found!")
     raise FileNotFoundError("Path to SilverFox-main not found!")
 
 from diffusion_model.trainer_brats import GaussianDiffusion, Trainer

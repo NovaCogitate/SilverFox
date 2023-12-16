@@ -561,6 +561,7 @@ class Trainer(object):
 
                 plt.plot(rolling_average)
                 plt.plot(loss_values)
+                plt.loglog()
 
                 plt.title("Loss values")
                 plt.xlabel("Steps")
