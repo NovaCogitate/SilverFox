@@ -50,7 +50,7 @@ depth_size = 0  # the size of classes
 
 # configuration of training
 batchsize = 8
-epochs = 1e8
+epochs = 1e7
 save_and_sample_every = 2500
 resume_weight = ""
 train_lr = 1e-4
