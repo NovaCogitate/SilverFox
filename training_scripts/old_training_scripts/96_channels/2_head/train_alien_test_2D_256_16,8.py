@@ -50,8 +50,8 @@ depth_size = 0  # the size of classes
 
 # configuration of training
 batchsize = 16
-epochs = 11
-save_and_sample_every = 10
+epochs = 1e7
+save_and_sample_every = 2500
 resume_weight = ""
 train_lr = 1e-4
 step_start_ema = 1e4
@@ -80,10 +80,10 @@ learn_sigma = False
 class_cond = True
 with_cond = False
 use_checkpoint = False
-attention_resolutions = "16,8"
+attention_resolutions = "16"
 use_scale_shift_norm = False
 use_fp16 = True
-timesteps = 10
+timesteps = 500
 result_name = f"results_2D_{input_size}_nc:{num_channels}_att:{attention_resolutions}_lr:{train_lr}_timestep:{timesteps}_nh:{num_heads}_nrb:{num_res_blocks}"
 
 if home_exists:
