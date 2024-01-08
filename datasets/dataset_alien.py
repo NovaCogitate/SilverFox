@@ -374,7 +374,7 @@ class SimplyNumpyDataset6_SilverFox(SimplyNumpyDataset4):
         max_CT_clamp=2000,
         output_min=-1,
         output_max=1,
-        manual_flips=False,
+        manual_flips=True,
         invert_sort=False,
     ):
         super().__init__(
@@ -431,7 +431,7 @@ class SimplyNumpyDataset6_SilverFox(SimplyNumpyDataset4):
         if self.normalization:
             resized_tensor = self._normalization(resized_tensor)
 
-        return resized_tensor, class_number, file_name
+        return resized_tensor, class_number
 
     def _normalization(self, resized_tensor) -> torch.Tensor:
         return CT_variable_normalization(
