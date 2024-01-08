@@ -739,6 +739,65 @@ class Trainer(object):
         execution_time = (end_time - start_time) / 3600
         print(f"Execution time (hour): {execution_time}")
 
+    def generate_and_return_samples(
+        self,
+        no_of_samples,
+        batch_size,
+        conditioning_samples=None,
+        y=torch.tensor(list(range(0, 128, 16))),
+    ):
+        # number of batches need to be calculated
+        batches = num_to_groups(no_of_samples, batch_size)
+
+        # splitting the conditional tensors:
+        if conditioning_samples:
+            split_tensors = []
+            start = 0
+            for length in batches:
+                end = start + length
+                split_tensors.append(conditioning_samples[start:end])
+                start = end
+
+        # splitting the conditional classes
+        if isinstance(y, torch.Tensor):
+            split_classes = []
+            start = 0
+            for length in batches:
+                end = start + length
+                split_classes.append(y[start:end])
+                start = end
+
+        if self.with_condition:
+            all_images_list = []
+            for batch, split_tensor in zip(batches, split_tensors):
+                all_images_list.append(
+                    self.ema_model.sample(
+                        batch_size=batch,
+                        condition_tensors=split_tensor,
+                    )
+                )
+            all_images = torch.cat(all_images_list, dim=0)
+
+        elif self.with_class_guided:
+            all_images_list = []
+            for batch, split_sample in zip(batches, split_classes):
+                all_images_list.append(
+                    self.ema_model.sample(
+                        batch_size=batch,
+                        y=split_sample,
+                    )
+                )
+
+            all_images = torch.cat(all_images_list, dim=0)
+
+        else:
+            all_images_list = list(
+                map(lambda n: self.ema_model.sample(batch_size=n), batches)
+            )
+            all_images = torch.cat(all_images_list, dim=0)
+
+        return all_images
+
     def generate_samples(
         self, no_of_samples, batch_size, conditioning_samples=None, milestone=0
     ):

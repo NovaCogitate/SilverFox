@@ -362,3 +362,85 @@ class SimplyNumpyDataset5(SimplyNumpyDataset4):
 
     def __len__(self):
         return super().__len__()
+
+
+class SimplyNumpyDataset6_SilverFox(SimplyNumpyDataset4):
+    def __init__(
+        self,
+        path_to_dataset,
+        output_size=512,
+        normalization=True,
+        min_CT_clamp=-1000,
+        max_CT_clamp=2000,
+        output_min=-1,
+        output_max=1,
+        manual_flips=False,
+        invert_sort=False,
+    ):
+        super().__init__(
+            path_to_dataset,
+            output_size,
+            normalization,
+            min_CT_clamp,
+            max_CT_clamp,
+            output_min,
+            output_max,
+            manual_flips,
+            invert_sort,
+        )
+
+    def __getitem__(self, index) -> np.ndarray:
+        # Determine whether to use the original image or its flipped version
+        assert not index >= len(self.list_of_files), "Index out of bounds"
+
+        file_name = self.list_of_files[index]
+        full_path = os.path.join(self.path_to_dataset, file_name)
+        image = np.load(full_path)
+
+        try:
+            match = re.search(r"patient_(\d{1,3})_class_(\d{1,3})", file_name)
+
+            if match:
+                image_number = int(match.group(1))
+                class_number = int(match.group(2))
+                # print("File:", file_name)
+                # print(f"Image number: {image_number}, Class number: {class_number}")
+            else:
+                print("No match found")
+                raise ValueError("Class not found in filename")
+        except AttributeError as e:
+            print("Corrupted file was,", file_name)
+            raise e
+
+        tensor = torch.from_numpy(image)
+        # tensor = torch.from_numpy(image).unsqueeze(0).unsqueeze(0)
+
+        while len(tensor.shape) < 4:
+            tensor = tensor.unsqueeze(0)
+            if len(tensor.shape) > 4:
+                raise ValueError("Tensor has more than 4 dimensions")
+
+        resized_tensor = F.interpolate(
+            tensor,
+            size=(self.output_size, self.output_size),
+            mode="bilinear",
+            align_corners=True,
+        )
+        resized_tensor = resized_tensor.squeeze(0)
+
+        if self.normalization:
+            resized_tensor = self._normalization(resized_tensor)
+
+        return resized_tensor, class_number, file_name
+
+    def _normalization(self, resized_tensor) -> torch.Tensor:
+        return CT_variable_normalization(
+            input_array=resized_tensor.numpy(),
+            ct_minimum_value=self.min_CT,
+            ct_maximum_value=self.max_CT,
+            output_minimum_value=self.output_min,
+            output_maximum_value=self.output_max,
+        )
+
+    def __len__(self):
+        return super().__len__()
